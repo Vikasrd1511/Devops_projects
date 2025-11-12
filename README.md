@@ -39,7 +39,7 @@ Note: [I have kept the complete code for backend, frontend, and k8s manifest fil
 # with 2 node(min:1, max: 3 nodes as autoscaling)
 
 eksctl create cluster \
-  --name Akhilesh-cluster \
+  --name -cluster \
   --region eu-west-1 \
   --version 1.31 \
   --nodegroup-name standard-workers \
@@ -67,7 +67,7 @@ aws eks list-clusters
 * Setting up the cluster config to access the cluster from the local machine.
 
 ```bash
-export cluster_name=Akhilesh-cluster # Name of the cluster
+export cluster_name=vikas-cluster # Name of the cluster
 echo $cluster_name
 
 # Configure the kube config
@@ -108,10 +108,10 @@ I will create a PostgreSQL RDS instance in the same VPC as the EKS cluster. I wi
 
 ```bash
 # VPC ID associated with your cluster
-aws eks describe-cluster --name Akhilesh-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text
+aws eks describe-cluster --name vikas-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text
 
 # Get VPC ID
-VPC_ID=$(aws eks describe-cluster --name Akhilesh-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
+VPC_ID=$(aws eks describe-cluster --name vikas-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
 
 # Find private subnets (subnets without a route to an internet gateway)
 PRIVATE_SUBNET_IDS=$(aws ec2 describe-subnets \
@@ -122,8 +122,8 @@ PRIVATE_SUBNET_IDS=$(aws ec2 describe-subnets \
 
 # Create a subnet group using only private subnet
 aws rds create-db-subnet-group \
-  --db-subnet-group-name akhilesh-postgres-private-subnet-group \
-  --db-subnet-group-description "Private subnet group for Akhilesh PostgreSQL RDS" \
+  --db-subnet-group-name vikas-postgres-private-subnet-group \
+  --db-subnet-group-description "Private subnet group for vikas PostgreSQL RDS" \
   --subnet-ids subnet-0115609bc602b388e subnet-0611f6ecae28a510c subnet-00a21441953091d88 \
   --region eu-west-1
 ```
@@ -156,7 +156,7 @@ SG_ID=$(aws ec2 describe-security-groups \
   --region eu-west-1)
 
 # get the SG attached with cluster nodes:
-NODE_SG=$(aws eks describe-cluster --name Akhilesh-cluster --region eu-west-1 \
+NODE_SG=$(aws eks describe-cluster --name vikas-cluster --region eu-west-1 \
   --query "cluster.resourcesVpcConfig.securityGroupIds[0]" --output text)
 
 # Allow cluster to reach rds on port 5432
@@ -175,14 +175,14 @@ aws ec2 authorize-security-group-ingress \
 ```bash
 # create the PostgreSQL RDS instance in the private subnet group
 aws rds create-db-instance \
-  --db-instance-identifier akhilesh-postgres \
+  --db-instance-identifier vikas-postgres \
   --db-instance-class db.t3.small \
   --engine postgres \
   --engine-version 15 \
   --allocated-storage 20 \
   --master-username postgresadmin \
   --master-user-password YourStrongPassword123! \
-  --db-subnet-group-name akhilesh-postgres-private-subnet-group \
+  --db-subnet-group-name vikas-postgres-private-subnet-group \
   --vpc-security-group-ids $SG_ID \
   --no-publicly-accessible \
   --backup-retention-period 7 \
@@ -199,15 +199,15 @@ You can see that RDS instance is getting created.
 
 The RDS will take some time to be ready. Once it is, you can copy the RDS details.
 
-`USERNAME: postgresadmin PASSWORD: YourStrongPassword123! DB_HOST: akhilesh-postgres.cveph9nmftjh.eu-west-1.rds.amazonaws.com (You can find this in the RDS instance endpoint configuration) DB_NAME: postgres (default database name since we did not provide a custom name)`
+`USERNAME: postgresadmin PASSWORD: YourStrongPassword123! DB_HOST: vikas-postgres.cveph9nmftjh.eu-west-1.rds.amazonaws.com (You can find this in the RDS instance endpoint configuration) DB_NAME: postgres (default database name since we did not provide a custom name)`
 
 ### **Deploying a 3-tier application on EKS**
 
 I have built the application images on Docker Hub, will use these images.
 
-`Backend image: livingdevopswithakhilesh/devopsdozo:backend-latest`
+`Backend image: livingdevopswithvikas/devopsdozo:backend-latest`
 
-`Frontend image: livingdevopswithakhilesh/devopsdozo:frontend-latest`
+`Frontend image: livingdevopswithvikas/devopsdozo:frontend-latest`
 
 #### **Clone the repo**
 
@@ -243,7 +243,7 @@ metadata:
     service: database
 spec:
   type: ExternalName
-  externalName:  akhilesh-postgres.cveph9nmftjh.eu-west-1.rds.amazonaws.com
+  externalName:  vikas-postgres.cveph9nmftjh.eu-west-1.rds.amazonaws.com
   ports:
   - port: 5432
 kubectl apply -f database-service.yaml
@@ -426,7 +426,7 @@ The AWS Load Balancer Controller automates the creation of AWS Application Load 
 #### **Set up OIDC provider for the EKS cluster to enable IAM roles for service accounts**
 
 ```bash
-export cluster_name=Akhilesh-cluster
+export cluster_name=vikas-cluster
 
 oidc_id=$(aws eks describe-cluster --name $cluster_name \
 --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5)
@@ -492,7 +492,7 @@ brew install helm # (for mac, google for other platforms)
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
-VPC_ID=$(aws eks describe-cluster --name Akhilesh-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
+VPC_ID=$(aws eks describe-cluster --name vikas-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
 
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   -n kube-system \
@@ -579,7 +579,7 @@ kubectl delete ingress 3-tier-app-ingress -n 3-tier-app-eks --grace-period=0 --f
 
 ```bash
 # VPC_ID for cluster
-VPC_ID=$(aws eks describe-cluster --name Akhilesh-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
+VPC_ID=$(aws eks describe-cluster --name vikas-cluster --region eu-west-1 --query "cluster.resourcesVpcConfig.vpcId" --output text)
 
 # verify the vpc id
 echo $VPC_ID
@@ -630,9 +630,9 @@ Mapping the domain with the application to access it publicly
 
 ```bash
 aws route53 create-hosted-zone \
-  --name akhileshmishra.tech \
+  --name vikasmishra.tech \
   --caller-reference $(date +%s) \
-  --hosted-zone-config Comment="Public hosted zone for akhileshmishra.tech"
+  --hosted-zone-config Comment="Public hosted zone for vikasmishra.tech"
 ```
 
 ![None](https://miro.medium.com/v2/resize:fit:700/1*wPGs8npRZ-TCYFBDOjNQkw.png)
@@ -647,7 +647,7 @@ ALB_DNS=$(kubectl get ingress 3-tier-app-ingress -n 3-tier-app-eks -o jsonpath='
 echo "ALB DNS Name: $ALB_DNS"
 
 # Get the hosted zone ID for your domain
-ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name akhileshmishra.tech --query "HostedZones[0].Id" --output text | sed 's/\/hostedzone\///')
+ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name vikasmishra.tech --query "HostedZones[0].Id" --output text | sed 's/\/hostedzone\///')
 echo "Hosted Zone ID: $ZONE_ID"
 
 # Create an A record alias pointing to the ALB
@@ -658,7 +658,7 @@ aws route53 change-resource-record-sets \
       {
         "Action": "UPSERT",
         "ResourceRecordSet": {
-          "Name": "app.akhileshmishra.tech",
+          "Name": "app.vikasmishra.tech",
           "Type": "A",
           "AliasTarget": {
             "HostedZoneId": "Z32O12XQLNTSW2",
@@ -671,7 +671,7 @@ aws route53 change-resource-record-sets \
   }'
 ```
 
-It takes some time for the DNS change to reflect, try pasting the subdomain (`app.akhileshmishra.tech` in my case) in your browser after some time, it should show you the application.
+It takes some time for the DNS change to reflect, try pasting the subdomain (`app.vikasmishra.tech` in my case) in your browser after some time, it should show you the application.
 
 ---
 
